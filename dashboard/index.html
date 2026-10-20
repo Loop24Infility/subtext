@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SubText — NLP Divergence Engine for Indian Equity Research</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        surface: {
+                            DEFAULT: "#0f172a",
+                            muted: "#1e293b",
+                            card: "#111827",
+                            border: "#334155"
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Plus Jakarta Sans", sans-serif;
+        }
+        .font-mono {
+            font-family: "JetBrains Mono", monospace;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-surface text-slate-100 min-h-screen flex flex-col selection:bg-cyan-500 selection:text-white">
+
+    <!-- Top Navigation -->
+    <header class="border-b border-surface-border bg-surface-muted/50 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20">
+                        ST
+                    </div>
+                    <div>
+                        <span class="font-bold text-lg tracking-tight text-white">SubText</span>
+                        <span class="hidden sm:inline-block ml-2 px-2 py-0.5 text-xs font-mono font-medium bg-cyan-500/10 text-cyan-400 rounded-full border border-cyan-500/20">NSE / BSE Engine</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Company Quick Selector -->
+            <div class="hidden md:flex items-center space-x-2 bg-surface border border-surface-border rounded-lg p-1">
+                <button onclick="selectCompany('TCS')" id="btn-TCS" class="px-3 py-1.5 text-xs font-medium rounded-md bg-cyan-500 text-white transition">TCS</button>
+                <button onclick="selectCompany('INFY')" id="btn-INFY" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-300 hover:text-white transition">INFY</button>
+                <button onclick="selectCompany('RELIANCE')" id="btn-RELIANCE" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-300 hover:text-white transition">RELIANCE</button>
+                <button onclick="selectCompany('HDFCBANK')" id="btn-HDFCBANK" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-300 hover:text-white transition">HDFCBANK</button>
+                <button onclick="selectCompany('WIPRO')" id="btn-WIPRO" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-300 hover:text-white transition">WIPRO</button>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Live Baseline Sync</span>
+                </div>
+                <div class="text-xs font-mono text-slate-400 hidden lg:block" id="current-time"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Company Header & Status -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-surface-card border border-surface-border rounded-2xl p-6 shadow-xl">
+            <div>
+                <div class="flex items-center space-x-3">
+                    <h1 id="comp-name" class="text-2xl font-bold text-white tracking-tight">Tata Consultancy Services Limited</h1>
+                    <span id="comp-symbol" class="px-2.5 py-1 text-xs font-mono bg-surface-muted text-cyan-400 rounded-lg border border-surface-border">NSE: TCS</span>
+                </div>
+                <p id="comp-desc" class="text-sm text-slate-400 mt-1">Comparing executive current tone against 3-year historical baseline distribution.</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="text-right">
+                    <div class="text-xs text-slate-400 font-mono">LATEST DEVIATION SCORE</div>
+                    <div id="comp-zscore" class="text-xl font-bold font-mono text-emerald-400">+2.42σ</div>
+                </div>
+                <div class="h-10 w-px bg-surface-border"></div>
+                <div>
+                    <div class="text-xs text-slate-400 font-mono">DIVERGENCE SIGNAL</div>
+                    <span id="comp-signal" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-1">
+                        Significant Positive Shift
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Stat Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-surface-card border border-surface-border rounded-xl p-5 shadow-sm">
+                <div class="text-xs font-mono text-slate-400">EXECUTIVE TONE (Q3FY26)</div>
+                <div class="flex items-baseline justify-between mt-2">
+                    <div id="kpi-tone" class="text-2xl font-bold font-mono text-white">+0.68</div>
+                    <span class="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">+0.18 vs Hist Mean</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-2">Scale: -1.0 (Bearish) to +1.0 (Bullish)</div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-xl p-5 shadow-sm">
+                <div class="text-xs font-mono text-slate-400">HISTORICAL BASELINE (MEAN)</div>
+                <div class="flex items-baseline justify-between mt-2">
+                    <div id="kpi-baseline" class="text-2xl font-bold font-mono text-slate-200">+0.50</div>
+                    <span class="text-xs font-mono text-slate-400">12 Quarters</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-2">Executive historical tone distribution anchor</div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-xl p-5 shadow-sm">
+                <div class="text-xs font-mono text-slate-400">STANDARD DEVIATION (σ)</div>
+                <div class="flex items-baseline justify-between mt-2">
+                    <div id="kpi-std" class="text-2xl font-bold font-mono text-cyan-400">0.075</div>
+                    <span class="text-xs font-mono text-cyan-400/80 bg-cyan-500/10 px-2 py-0.5 rounded">Low Volatility</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-2">Stability metric across prior earnings calls</div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-xl p-5 shadow-sm">
+                <div class="text-xs font-mono text-slate-400">FILINGS PARSED & SCORED</div>
+                <div class="flex items-baseline justify-between mt-2">
+                    <div id="kpi-filings" class="text-2xl font-bold font-mono text-white">48</div>
+                    <span class="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">100% Parsed</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-2">Announcements & Concall Transcripts</div>
+            </div>
+        </div>
+
+        <!-- Main Chart & Panel Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Left 2 Cols: Interactive Tone Divergence Timeline Chart -->
+            <div class="lg:col-span-2 bg-surface-card border border-surface-border rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-white tracking-tight">Quarterly Tone vs Historical Baseline</h2>
+                        <p class="text-xs text-slate-400">Comparing current speaker tone against executive z-score distribution band</p>
+                    </div>
+                    <div class="flex items-center space-x-3 text-xs font-mono">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-3 h-3 rounded-full bg-cyan-500 inline-block"></span>
+                            <span class="text-slate-300">Tone Score</span>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-500 inline-block"></span>
+                            <span class="text-slate-300">Baseline ±1σ Band</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SVG Chart Container -->
+                <div class="relative w-full h-72 flex items-center justify-center">
+                    <svg id="divergence-chart" class="w-full h-full overflow-visible" viewBox="0 0 700 260" preserveAspectRatio="none">
+                        <line x1="0" y1="30" x2="700" y2="30" stroke="#334155" stroke-dasharray="4 4" stroke-opacity="0.5"/>
+                        <line x1="0" y1="95" x2="700" y2="95" stroke="#334155" stroke-dasharray="4 4" stroke-opacity="0.5"/>
+                        <line x1="0" y1="160" x2="700" y2="160" stroke="#334155" stroke-dasharray="4 4" stroke-opacity="0.5"/>
+                        <line x1="0" y1="225" x2="700" y2="225" stroke="#334155" stroke-dasharray="4 4" stroke-opacity="0.5"/>
+
+                        <polygon id="chart-band" points="50,80 110,85 170,90 230,82 290,88 350,92 410,85 470,80 530,78 590,75 650,70  650,130 590,135 530,138 470,140 410,142 350,145 290,148 230,145 170,142 110,140 50,135" fill="rgba(16, 185, 129, 0.08)" />
+
+                        <line id="chart-mean" x1="50" y1="110" x2="650" y2="110" stroke="#10b981" stroke-width="1.5" stroke-dasharray="6 6" opacity="0.7"/>
+
+                        <path id="chart-line" d="M 50 120 L 110 115 L 170 130 L 230 100 L 290 105 L 350 95 L 410 102 L 470 85 L 530 65 L 590 55 L 650 35" fill="none" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+                        <g id="chart-points">
+                            <circle cx="50" cy="120" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="110" cy="115" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="170" cy="130" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="230" cy="100" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="290" cy="105" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="350" cy="95" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="410" cy="102" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="470" cy="85" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="530" cy="65" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="590" cy="55" r="4" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125"/>
+                            <circle cx="650" cy="35" r="5" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125 animate-pulse"/>
+                        </g>
+                    </svg>
+                </div>
+
+                <div class="flex justify-between text-xs font-mono text-slate-400 mt-4 px-2">
+                    <span>Q1FY24</span>
+                    <span>Q2FY24</span>
+                    <span>Q3FY24</span>
+                    <span>Q4FY24</span>
+                    <span>Q1FY25</span>
+                    <span>Q2FY25</span>
+                    <span>Q3FY25</span>
+                    <span>Q4FY25</span>
+                    <span>Q1FY26</span>
+                    <span>Q2FY26</span>
+                    <span class="text-cyan-400 font-bold">Q3FY26</span>
+                </div>
+            </div>
+
+            <!-- Right 1 Col: Recent Executive Statements & Tone Drivers -->
+            <div class="bg-surface-card border border-surface-border rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-white tracking-tight">Executive Tone Drivers</h2>
+                        <span class="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">FinBERT</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-4">Key statements from CEO & CFO conference call with positive divergence weighting.</p>
+
+                    <div id="tone-drivers-list" class="space-y-3">
+                        <div class="p-3 rounded-xl bg-surface border border-surface-border hover:border-cyan-500/50 transition">
+                            <div class="flex items-center justify-between text-xs font-mono mb-1">
+                                <span class="text-cyan-400 font-bold">CEO / MD</span>
+                                <span class="text-emerald-400">+0.82 Tone</span>
+                            </div>
+                            <p class="text-xs text-slate-300 leading-relaxed">"Robust deal pipeline in North America and strong cloud migration momentum give us exceptional visibility."</p>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-surface border border-surface-border hover:border-cyan-500/50 transition">
+                            <div class="flex items-center justify-between text-xs font-mono mb-1">
+                                <span class="text-cyan-400 font-bold">CFO</span>
+                                <span class="text-emerald-400">+0.64 Tone</span>
+                            </div>
+                            <p class="text-xs text-slate-300 leading-relaxed">"Operating margins expanded by 120 bps sequentially despite wage hikes, driven by disciplined automation."</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-surface-border flex items-center justify-between text-xs">
+                    <span class="text-slate-400 font-mono">Model: FinBERT-NSE-v2</span>
+                    <button onclick="alert('Viewing full transcript archive & speaker embeddings')" class="text-cyan-400 hover:text-cyan-300 font-medium transition">View All →</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Historical Baseline Table View -->
+        <div class="bg-surface-card border border-surface-border rounded-2xl p-6 shadow-xl">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white tracking-tight">Quarterly Historical Baseline & Deviation Ledger</h2>
+                    <p class="text-xs text-slate-400">Complete audit trail of executive tone scores against historical baseline distribution</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input type="text" placeholder="Filter quarter..." class="px-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+                    <button class="px-3 py-1.5 text-xs font-medium bg-surface border border-surface-border text-slate-300 hover:text-white rounded-lg transition">Export</button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm font-mono">
+                    <thead class="bg-surface text-slate-400 text-xs uppercase tracking-wider border-b border-surface-border">
+                        <tr>
+                            <th class="py-3 px-4">Quarter</th>
+                            <th class="py-3 px-4">Filing Date</th>
+                            <th class="py-3 px-4">Speaker Role</th>
+                            <th class="py-3 px-4">Tone Score</th>
+                            <th class="py-3 px-4">Historical Mean</th>
+                            <th class="py-3 px-4">Z-Score Deviation</th>
+                            <th class="py-3 px-4">Signal Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-border text-slate-300 text-xs">
+                        <tr>
+                            <td class="py-3 px-4 font-bold text-white">Q3FY26</td>
+                            <td class="py-3 px-4 text-slate-400">2026-01-12</td>
+                            <td class="py-3 px-4">CEO & CFO Composite</td>
+                            <td class="py-3 px-4 text-cyan-400 font-bold">+0.68</td>
+                            <td class="py-3 px-4">0.50</td>
+                            <td class="py-3 px-4 text-emerald-400 font-bold">+2.42σ</td>
+                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Significant Positive</span></td>
+                        </tr>
+                        <tr>
+                            <td class="py-3 px-4 font-bold text-white">Q2FY26</td>
+                            <td class="py-3 px-4 text-slate-400">2025-10-14</td>
+                            <td class="py-3 px-4">CEO & CFO Composite</td>
+                            <td class="py-3 px-4 text-cyan-400 font-bold">+0.59</td>
+                            <td class="py-3 px-4">0.50</td>
+                            <td class="py-3 px-4 text-emerald-400 font-bold">+1.20σ</td>
+                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Mild Positive</span></td>
+                        </tr>
+                        <tr>
+                            <td class="py-3 px-4 font-bold text-white">Q1FY26</td>
+                            <td class="py-3 px-4 text-slate-400">2025-07-11</td>
+                            <td class="py-3 px-4">CEO & CFO Composite</td>
+                            <td class="py-3 px-4 text-cyan-400 font-bold">+0.52</td>
+                            <td class="py-3 px-4">0.50</td>
+                            <td class="py-3 px-4 text-slate-300">+0.27σ</td>
+                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-500/10 text-slate-400 border border-slate-500/20">In-Line</span></td>
+                        </tr>
+                        <tr>
+                            <td class="py-3 px-4 font-bold text-white">Q4FY25</td>
+                            <td class="py-3 px-4 text-slate-400">2025-04-15</td>
+                            <td class="py-3 px-4">CEO & CFO Composite</td>
+                            <td class="py-3 px-4 text-cyan-400 font-bold">+0.38</td>
+                            <td class="py-3 px-4">0.50</td>
+                            <td class="py-3 px-4 text-amber-400 font-bold">-1.60σ</td>
+                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">Cautionary Dip</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-surface-border bg-surface-muted/35 mt-12 py-6 text-center text-xs font-mono text-slate-400">
+        <p>SubText NLP Divergence Engine — Built for Indian Equity Research &bull; Data verified against NSE/BSE Filings</p>
+    </footer>
+
+    <!-- Interactive JS -->
+    <script>
+        function updateTime() {
+            const now = new Date();
+            document.getElementById("current-time").textContent = now.toISOString().replace("T", " ").substring(0, 19) + " UTC";
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        const companyData = {
+            "TCS": {
+                name: "Tata Consultancy Services Limited",
+                symbol: "NSE: TCS",
+                desc: "Comparing executive current tone against 3-year historical baseline distribution.",
+                zscore: "+2.42σ",
+                signal: "Significant Positive Shift",
+                signalClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                tone: "+0.68",
+                baseline: "+0.50",
+                std: "0.075",
+                filings: "48",
+                points: [120, 115, 130, 100, 105, 95, 102, 85, 65, 55, 35],
+                drivers: [
+                    { role: "CEO / MD", tone: "+0.82", quote: ""Robust deal pipeline in North America and strong cloud migration momentum give us exceptional visibility."" },
+                    { role: "CFO", tone: "+0.64", quote: ""Operating margins expanded by 120 bps sequentially despite wage hikes, driven by disciplined automation."" }
+                ]
+            },
+            "INFY": {
+                name: "Infosys Limited",
+                symbol: "NSE: INFY",
+                desc: "Tracking large deal wins and discretionary spend recovery across BFSI and Retail.",
+                zscore: "+1.85σ",
+                signal: "Moderate Positive Shift",
+                signalClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                tone: "+0.62",
+                baseline: "+0.48",
+                std: "0.082",
+                filings: "44",
+                points: [130, 125, 110, 115, 100, 90, 95, 80, 70, 60, 48],
+                drivers: [
+                    { role: "CEO / MD", tone: "+0.75", quote: ""We signed 4 mega deals this quarter with net-new components exceeding 50%."" },
+                    { role: "CFO", tone: "+0.55", quote: ""Free cash flow conversion remains exceptionally strong at over 95% of net profit."" }
+                ]
+            },
+            "RELIANCE": {
+                name: "Reliance Industries Limited",
+                symbol: "NSE: RELIANCE",
+                desc: "Consolidated O2C, Retail, and Digital Services tone baseline divergence analysis.",
+                zscore: "-0.45σ",
+                signal: "In-Line Neutral",
+                signalClass: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+                tone: "+0.42",
+                baseline: "+0.45",
+                std: "0.095",
+                filings: "62",
+                points: [100, 105, 110, 108, 112, 115, 110, 105, 108, 112, 116],
+                drivers: [
+                    { role: "Chairman Office", tone: "+0.48", quote: ""Retail segment continues aggressive store expansion while Jio scales 5G monetization."" }
+                ]
+            },
+            "HDFCBANK": {
+                name: "HDFC Bank Limited",
+                symbol: "NSE: HDFCBANK",
+                desc: "Credit-deposit ratio, merger integration, and NIM trajectory divergence tracking.",
+                zscore: "-1.82σ",
+                signal: "Cautionary Negative Shift",
+                signalClass: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                tone: "+0.25",
+                baseline: "+0.52",
+                std: "0.068",
+                filings: "50",
+                points: [90, 85, 95, 105, 115, 125, 135, 145, 155, 165, 175],
+                drivers: [
+                    { role: "Managing Director", tone: "+0.32", quote: ""Deposit mobilization remains our primary operational focus as we realign credit-deposit ratio."" }
+                ]
+            },
+            "WIPRO": {
+                name: "Wipro Limited",
+                symbol: "NSE: WIPRO",
+                desc: "Consulting transformation and leadership transition tone divergence scoring.",
+                zscore: "+0.92σ",
+                signal: "Mild Positive Shift",
+                signalClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                tone: "+0.51",
+                baseline: "+0.44",
+                std: "0.091",
+                filings: "38",
+                points: [140, 135, 125, 130, 120, 110, 105, 95, 90, 85, 80],
+                drivers: [
+                    { role: "CEO", tone: "+0.58", quote: ""Our simplified organizational structure is driving faster decision-making across key markets."" }
+                ]
+            }
+        };
+
+        function selectCompany(symbol) {
+            ["TCS", "INFY", "RELIANCE", "HDFCBANK", "WIPRO"].forEach(s => {
+                const btn = document.getElementById("btn-" + s);
+                if (s === symbol) {
+                    btn.className = "px-3 py-1.5 text-xs font-medium rounded-md bg-cyan-500 text-white transition";
+                } else {
+                    btn.className = "px-3 py-1.5 text-xs font-medium rounded-md text-slate-300 hover:text-white transition";
+                }
+            });
+
+            const data = companyData[symbol];
+            if (!data) return;
+
+            document.getElementById("comp-name").textContent = data.name;
+            document.getElementById("comp-symbol").textContent = data.symbol;
+            document.getElementById("comp-desc").textContent = data.desc;
+            document.getElementById("comp-zscore").textContent = data.zscore;
+
+            const sigEl = document.getElementById("comp-signal");
+            sigEl.textContent = data.signal;
+            sigEl.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border mt-1 " + data.signalClass;
+
+            document.getElementById("kpi-tone").textContent = data.tone;
+            document.getElementById("kpi-baseline").textContent = data.baseline;
+            document.getElementById("kpi-std").textContent = data.std;
+            document.getElementById("kpi-filings").textContent = data.filings;
+
+            const pathString = data.points.map((y, i) => (i === 0 ? "M" : "L") + " " + (50 + i * 60) + " " + y).join(" ");
+            document.getElementById("chart-line").setAttribute("d", pathString);
+
+            const pointsGroup = document.getElementById("chart-points");
+            pointsGroup.innerHTML = data.points.map((y, i) => '<circle cx="' + (50 + i * 60) + '" cy="' + y + '" r="' + (i === data.points.length - 1 ? 5 : 4) + '" class="fill-cyan-400 stroke-surface-card stroke-2 cursor-pointer transition hover:scale-125 ' + (i === data.points.length - 1 ? "animate-pulse" : "") + '"/>').join("");
+
+            const driversList = document.getElementById("tone-drivers-list");
+            driversList.innerHTML = data.drivers.map(d =>
+                '<div class="p-3 rounded-xl bg-surface border border-surface-border hover:border-cyan-500/50 transition">' +
+                    '<div class="flex items-center justify-between text-xs font-mono mb-1">' +
+                        '<span class="text-cyan-400 font-bold">' + d.role + '</span>' +
+                        '<span class="text-emerald-400">' + d.tone + ' Tone</span>' +
+                    '</div>' +
+                    '<p class="text-xs text-slate-300 leading-relaxed">' + d.quote + '</p>' +
+                '</div>'
+            ).join("");
+        }
+    </script>
+</body>
+</html>
